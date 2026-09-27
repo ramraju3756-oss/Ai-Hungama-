@@ -1,1 +1,201 @@
+name: Build AI HUNGAMA APK
 
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Android project
+        shell: bash
+        run: |
+          mkdir -p app/src/main/java/com/aihungama/app
+          mkdir -p app/src/main/res/values
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          rootProject.name = "AI_HUNGAMA"
+          include ":app"
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.13.0' apply false
+          }
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.aihungama.app'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'com.aihungama.app'
+                  minSdk 23
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
+              }
+          }
+          EOF
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+              <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
+                  <item name="android:fontFamily">sans</item>
+                  <item name="android:statusBarColor">#070B16</item>
+                  <item name="android:navigationBarColor">#070B16</item>
+              </style>
+          </resources>
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:theme="@style/AppTheme"
+                  android:label="AI HUNGAMA">
+                  <activity
+                      android:name=".MainActivity"
+                      android:screenOrientation="portrait"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/com/aihungama/app/MainActivity.java <<'EOF'
+          package com.aihungama.app;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.graphics.Color;
+          import android.graphics.Typeface;
+          import android.view.Gravity;
+          import android.widget.*;
+
+          public class MainActivity extends Activity {
+
+              LinearLayout root;
+
+              @Override
+              public void onCreate(Bundle b) {
+                  super.onCreate(b);
+
+                  root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setPadding(24, 30, 24, 20);
+                  root.setBackgroundColor(Color.rgb(5,10,18));
+
+                  TextView logo = new TextView(this);
+                  logo.setText("AI HUNGAMA");
+                  logo.setTextColor(Color.WHITE);
+                  logo.setTextSize(30);
+                  logo.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+
+                  TextView sub = new TextView(this);
+                  sub.setText("AI Se Banao, Sabko Dikhao!");
+                  sub.setTextColor(Color.LTGRAY);
+                  sub.setTextSize(14);
+
+                  root.addView(logo);
+                  root.addView(sub);
+
+                  TextView hero = new TextView(this);
+                  hero.setText("\\n🐯   🦁   🐆   🐃\\n\\n       SHERU STORIES\\n\\n   4 FRIENDS • ENDLESS ADVENTURES");
+                  hero.setGravity(Gravity.CENTER);
+                  hero.setTextColor(Color.WHITE);
+                  hero.setTextSize(20);
+                  hero.setPadding(10,45,10,45);
+                  hero.setBackgroundColor(Color.rgb(25,35,55));
+
+                  root.addView(hero);
+
+                  EditText idea = new EditText(this);
+                  idea.setHint("अपना AI idea यहाँ लिखें...");
+                  idea.setTextColor(Color.WHITE);
+                  idea.setHintTextColor(Color.GRAY);
+                  root.addView(idea);
+
+                  Button generate = new Button(this);
+                  generate.setText("✨ GENERATE PROMPT");
+                  root.addView(generate);
+
+                  TextView result = new TextView(this);
+                  result.setTextColor(Color.WHITE);
+                  result.setTextSize(14);
+                  result.setPadding(12,20,12,20);
+                  root.addView(result);
+
+                  generate.setOnClickListener(v -> {
+                      String text = idea.getText().toString();
+
+                      if(text.trim().isEmpty()) {
+                          result.setText("पहले अपना idea लिखें।");
+                      } else {
+                          result.setText(
+                              "🎬 AI VIDEO PROMPT\\n\\n" +
+                              text +
+                              "\\n\\nPhotorealistic cinematic video, realistic movement, " +
+                              "dramatic lighting, detailed environment, 9:16 vertical, " +
+                              "strong hook, natural sound, no cartoon look."
+                          );
+                      }
+                  });
+
+                  setContentView(root);
+              }
+          }
+          EOF
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Build APK
+        run: gradle assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-HUNGAMA-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
